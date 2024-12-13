@@ -1,0 +1,27 @@
+# 프로젝트 문서
+Docs/
+*.md
+!README.md
+!날개(Nalgae) PRD.md
+# Cursor 설정
+.cursorrules
+.cursor/
+.cursor.json
+
+# 테스트 관련
+tests/
+.coverage
+coverage/
+.tox/
+
+# 임시 파일
+*.bak
+*.tmp
+*.temp
+
+# 로컬 설정
+settings.json
+config.local.json
+
+# 파이썬 가상환경
+venv_nalgae/
