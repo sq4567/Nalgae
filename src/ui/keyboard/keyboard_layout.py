@@ -1,4 +1,4 @@
-from PySide6.QtWidgets import QWidget, QPushButton, QApplication
+from PySide6.QtWidgets import QWidget, QPushButton, QApplication, QVBoxLayout, QGridLayout
 from PySide6.QtCore import Qt, Signal, QTimer
 from PySide6.QtGui import QFont
 from utils.win32_utils import is_hangul_mode, switch_keyboard_layout
@@ -19,6 +19,7 @@ class KeyboardLayout(QWidget):
     
     key_pressed = Signal(str)  # 키 입력 시그널
     quit_requested = Signal()  # 종료 시그널
+    mode_changed = Signal()  # 새로운 시그널
     
     # 한글/영문 키 매핑
     KEY_MAPPINGS: Dict[str, str] = {
@@ -62,9 +63,11 @@ class KeyboardLayout(QWidget):
         
         # 현재 한/영 상태 저장
         self.is_hangul = is_hangul_mode()
+        self.is_nalgae_mode = False  # 현재 모드 상태 추적
         
+        self.layout = QGridLayout(self)
         self._init_keyboard()
-        self._update_hangul_button_label()  # 한영 버튼 라벨 업데이트
+        self._update_hangul_button_label()  # 한영 ��튼 라벨 업데이트
         self._update_key_labels()  # 키 라벨 업데이트
     
     def _update_hangul_button_label(self):
@@ -89,7 +92,7 @@ class KeyboardLayout(QWidget):
                 # Shift가 눌린 상태에서는 특수문자로 표시
                 btn.setText(self.SHIFT_KEY_MAPPINGS[key])
             elif key in self.KEY_MAPPINGS:
-                # 한/영 상태에 따라 표시
+                # 한/영 상태에 따라 표���
                 btn.setText(self.KEY_MAPPINGS[key] if self.is_hangul else key)
             elif key.isalpha():  # 알파벳의 경우
                 btn.setText(key.upper() if shift_pressed else key.lower())
@@ -111,10 +114,10 @@ class KeyboardLayout(QWidget):
         self.key_buttons['Backspace'] = backspace_btn
         
         # 종료 버튼 (임시 위치에 생성, adjust_window_size에서 최종 위치 조정)
-        quit_btn = QPushButton('×', self)
-        quit_btn.setGeometry(0, 0, 30, 30)  # 임시 위치
-        quit_btn.clicked.connect(self.quit_requested.emit)
-        quit_btn.setStyleSheet("""
+        self.quit_button = QPushButton('×', self)
+        self.quit_button.setGeometry(0, 0, 30, 30)  # 임시 위치
+        self.quit_button.clicked.connect(self.quit_requested.emit)
+        self.quit_button.setStyleSheet("""
             QPushButton {
                 background-color: #bc0000;
                 border: none;
@@ -125,6 +128,25 @@ class KeyboardLayout(QWidget):
             }
             QPushButton:hover {
                 background-color: #ff0000;
+                color: white;
+            }
+        """)
+        
+        # 두드 전환 버튼 추가
+        self.mode_button = QPushButton('날', self)
+        self.mode_button.setGeometry(0, 30, 30, 30)  # 종료 버튼 바로 아래 위치
+        self.mode_button.clicked.connect(self._on_mode_button_clicked)
+        self.mode_button.setStyleSheet("""
+            QPushButton {
+                background-color: #444444;
+                border: none;
+                color: white;
+                font-size: 16px;
+                padding: 0;
+                margin: 0;
+            }
+            QPushButton:hover {
+                background-color: #666666;
                 color: white;
             }
         """)
@@ -293,7 +315,7 @@ class KeyboardLayout(QWidget):
         
         # 백틱 키 처리
         if key == '`':
-            win32api.keybd_event(0xC0, 0, 0, 0)  # 백틱 키 누름
+            win32api.keybd_event(0xC0, 0, 0, 0)  # 백틱 키 름
             win32api.keybd_event(0xC0, 0, win32con.KEYEVENTF_KEYUP, 0)  # 백틱 키 뗌
             return
         
@@ -325,7 +347,7 @@ class KeyboardLayout(QWidget):
             '=': (0xBB, False),  # 등호/플러스 키
             '[': (0xDB, False),  # 왼쪽 대괄호
             ']': (0xDD, False),  # 오른쪽 대괄호
-            '\\': (0xDC, False), # 백슬래시
+            '\\': (0xDC, False), # 백슬���시
             ';': (0xBA, False),  # 세미콜론
             '\'': (0xDE, False), # 작은따옴표
             ',': (0xBC, False),  # 쉼표
@@ -358,7 +380,7 @@ class KeyboardLayout(QWidget):
     def _toggle_special_key(self, key: str):
         """특수 키 상태 토글 처리"""
         self.special_key_states[key] = not self.special_key_states[key]
-        print(f"{key} 상태: {self.special_key_states[key]}")  # 상태 출력
+        print(f"{key} 상태: {self.special_key_states[key]}")  # 태 출력
         
         # 실제 키 입력 시뮬레이션
         if self.special_key_states[key]:
@@ -416,7 +438,7 @@ class KeyboardLayout(QWidget):
     
     def _update_after_ime_change(self):
         """IME 상태 변경 후 UI 업데이트"""
-        self._update_hangul_button_label()  # IME 상태에 따라 라벨 업데이트
+        self._update_hangul_button_label()  # IME 상에 따라 라벨 업데이트
         self._update_key_labels()  # 키 라벨 업데이트
     
     def _handle_arrow_key(self, key: str):
@@ -453,58 +475,28 @@ class KeyboardLayout(QWidget):
         quit_btn = [btn for btn in self.children() if isinstance(btn, QPushButton) and btn.text() == '×'][0]
         quit_btn.setGeometry(max_width - 30, 0, 30, 30)
         
+        # 모드 전환 버튼 위치 조정 (종료 버튼 바로 아래)
+        mode_btn = [btn for btn in self.children() if isinstance(btn, QPushButton) and btn.text() in ['날', '일']][0]
+        mode_btn.setGeometry(max_width - 30, 30, 30, 30)
+        
         # MainWindow의 크기 조정
         if self.parent() and self.parent().parent():
             main_window = self.parent().parent()
             main_window.setFixedSize(max_width, max_height)
-
-KEYEVENTF_KEYDOWN = 0x0000
-KEYEVENTF_KEYUP = 0x0002
-
-class KEYBOARD_INPUT(ctypes.Structure):
-    _fields_ = [
-        ("wVk", wintypes.WORD),
-        ("wScan", wintypes.WORD),
-        ("dwFlags", wintypes.DWORD),
-        ("time", wintypes.DWORD),
-        ("dwExtraInfo", ctypes.POINTER(ctypes.c_ulong))
-    ]
-
-class INPUT_UNION(ctypes.Union):
-    _fields_ = [
-        ("ki", KEYBOARD_INPUT),
-        ("padding", ctypes.c_byte * 8)
-    ]
-
-class INPUT(ctypes.Structure):
-    _fields_ = [
-        ("type", wintypes.DWORD),
-        ("union", INPUT_UNION)
-    ]
-
-def send_key_input(vk_code: int):
-    """SendInput을 사용한 저수준 키 입력"""
-    extra = ctypes.c_ulong(0)
     
-    # 키 다운 이벤트
-    input_down = INPUT(type=1)  # 1 = keyboard input
-    input_down.union.ki = KEYBOARD_INPUT(
-        wVk=vk_code,
-        wScan=0,
-        dwFlags=KEYEVENTF_KEYDOWN,
-        time=0,
-        dwExtraInfo=ctypes.pointer(extra)
-    )
-    
-    # 키 업 이벤트
-    input_up = INPUT(type=1)
-    input_up.union.ki = KEYBOARD_INPUT(
-        wVk=vk_code,
-        wScan=0,
-        dwFlags=KEYEVENTF_KEYUP,
-        time=0,
-        dwExtraInfo=ctypes.pointer(extra)
-    )
-    
-    inputs = (INPUT * 2)(input_down, input_up)
-    ctypes.windll.user32.SendInput(2, ctypes.pointer(inputs), ctypes.sizeof(INPUT))
+    def _create_control_buttons(self):
+        # 기존 종료 버튼 코드...
+        
+        # 모드 전환 버튼 추가
+        self.mode_button = QPushButton("날")
+        self.mode_button.clicked.connect(self._on_mode_button_clicked)
+        
+        # 버튼들을 수직으로 배치
+        control_layout = QVBoxLayout()
+        control_layout.addWidget(self.quit_button)
+        control_layout.addWidget(self.mode_button)
+        
+    def _on_mode_button_clicked(self):
+        self.is_nalgae_mode = not self.is_nalgae_mode
+        self.mode_button.setText("일" if self.is_nalgae_mode else "날")
+        self.mode_changed.emit()
