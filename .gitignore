@@ -25,3 +25,5 @@ config.local.json
 
 # 파이썬 가상환경
 venv_nalgae/
+*.ai
+run.bat
