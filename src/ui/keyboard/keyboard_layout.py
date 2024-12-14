@@ -1,7 +1,7 @@
 from PySide6.QtWidgets import QWidget, QPushButton, QApplication
 from PySide6.QtCore import Qt, Signal, QTimer
 from PySide6.QtGui import QFont
-from src.utils.win32_utils import is_hangul_mode, switch_keyboard_layout
+from utils.win32_utils import is_hangul_mode, switch_keyboard_layout
 from core.input import send_key, SPECIAL_KEYS
 from typing import Dict
 import win32api
@@ -73,7 +73,7 @@ class KeyboardLayout(QWidget):
         self.hangul_btn.setText('한글' if self.is_hangul else 'ENG')
     
     def _update_key_labels(self):
-        """키보드 키의 라벨을 IME 상태와 Shift 상태에 맞게 업��이트합니다."""
+        """키보드 키의 라벨을 IME 상태와 Shift 상태에 맞게 업데이트합니다."""
         shift_pressed = self.special_key_states['Shift']
         
         # 특수 키 목록 (텍스트가 변경되지 않아야 하는 키들)
@@ -415,7 +415,7 @@ class KeyboardLayout(QWidget):
         QTimer.singleShot(50, self._update_after_ime_change)
     
     def _update_after_ime_change(self):
-        """IME 상태 변경 후 UI 업데��트"""
+        """IME 상태 변경 후 UI 업데이트"""
         self._update_hangul_button_label()  # IME 상태에 따라 라벨 업데이트
         self._update_key_labels()  # 키 라벨 업데이트
     
@@ -445,10 +445,6 @@ class KeyboardLayout(QWidget):
             btn_rect = btn.geometry()
             max_width = max(max_width, btn_rect.right())
             max_height = max(max_height, btn_rect.bottom())
-    
-        # 여백 추가 완전히 제거
-        max_width += 0  # 좌우 여백을 완전히 제거
-        max_height += 0  # 하단 여백을 완전히 제거
         
         # 키보드 레이아웃 자체의 크기 설정
         self.setFixedSize(max_width, max_height)
@@ -457,14 +453,10 @@ class KeyboardLayout(QWidget):
         quit_btn = [btn for btn in self.children() if isinstance(btn, QPushButton) and btn.text() == '×'][0]
         quit_btn.setGeometry(max_width - 30, 0, 30, 30)
         
-        # 부모 위젯의 크기 조정
-        if self.parent():
-            parent = self.parent()
-            while parent:
-                if isinstance(parent, QApplication):
-                    parent.setFixedSize(max_width, max_height)
-                    break
-                parent = parent.parent()
+        # MainWindow의 크기 조정
+        if self.parent() and self.parent().parent():
+            main_window = self.parent().parent()
+            main_window.setFixedSize(max_width, max_height)
 
 KEYEVENTF_KEYDOWN = 0x0000
 KEYEVENTF_KEYUP = 0x0002

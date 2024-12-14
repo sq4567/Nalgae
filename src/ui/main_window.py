@@ -1,7 +1,7 @@
 from PySide6.QtWidgets import QMainWindow, QWidget, QPushButton, QApplication
 from PySide6.QtCore import Qt
 from PySide6.QtGui import QFont
-from .keyboard.keyboard_layout import KeyboardLayout
+from ui.keyboard.keyboard_layout import KeyboardLayout
 from core.input import send_key
 import win32gui
 import win32con
