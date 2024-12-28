@@ -27,3 +27,4 @@ config.local.json
 venv_nalgae/
 *.ai
 run.bat
+*.png
