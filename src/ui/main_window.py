@@ -166,41 +166,38 @@ class NalgaeKeyboardLayout(QWidget):
 
     def adjust_window_size(self):
         """날개 모드에서의 창 크기 조정"""
-        # 1. 키보드 버튼들의 영역 계산
+        # 1. 키보드 버튼들의 영구 위치 계산
         keyboard_width = 0
         keyboard_height = 0
         
-        for btn in self.key_buttons.values():
-            btn_rect = btn.geometry()
-            keyboard_width = max(keyboard_width, btn_rect.right())
-            keyboard_height = max(keyboard_height, btn_rect.bottom())
+        # 버튼들의 초기 위치 기준으로 크기 계산
+        for row in range(3):
+            for col in range(3):
+                x = col * self.unit_width
+                y = row * self.unit_height
+                keyboard_width = max(keyboard_width, x + self.unit_width)
+                keyboard_height = max(keyboard_height, y + self.unit_height)
         
-        # 2. 종료 버튼 너비(30px)를 네 모서리에 추가
+        # 2. 여백 추가하여 전체 크기 계산
         total_width = keyboard_width + (30 * 2)  # 좌우 각각 30px
         total_height = keyboard_height + (30 * 2)  # 상하 각각 30px
         
-        # 3. 창 크기 조정 및 버튼 재배치
+        # 3. 창 크기 조정
         self.setFixedSize(total_width, total_height)
         
-        # 키보드 버튼들을 중앙으로 이동
-        x_offset = 30  # 왼쪽 여백
-        y_offset = 30  # 위쪽 여백
+        # 4. 버튼들을 절대 위치로 재배치
+        for row in range(3):
+            for col in range(3):
+                btn = self.key_buttons[f"빝{row*3 + col + 1}"]
+                x = col * self.unit_width + 30  # 30px 왼쪽 여백
+                y = row * self.unit_height + 30  # 30px 위쪽 여백
+                btn.setGeometry(x, y, self.unit_width, self.unit_height)
         
-        for btn in self.key_buttons.values():
-            current_pos = btn.geometry()
-            btn.setGeometry(
-                current_pos.x() + x_offset,
-                current_pos.y() + y_offset,
-                current_pos.width(),
-                current_pos.height()
-            )
-        
-        # 종료 버튼과 모드 전환 버튼 위치 설정
-        # 우상단
+        # 5. 종료 버튼과 모드 전환 버튼 위치 설정
         self.quit_button.setGeometry(total_width - 30, 0, 30, 30)
         self.mode_button.setGeometry(total_width - 30, 30, 30, 30)
         
-        # MainWindow 크기 조정
+        # 6. MainWindow 크기 조정
         if self.parent() and self.parent().parent():
             main_window = self.parent().parent()
             main_window.setFixedSize(total_width, total_height)
