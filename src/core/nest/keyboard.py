@@ -15,6 +15,7 @@ from .ime_manager import IMEState, IMEManager
 from .key_label import KeyLabel, KeyLabelManager
 from .key_simulator import KeySimulator
 from .feedback_manager import FeedbackManager
+from .memory_manager import MemoryManager
 
 # 로거 설정
 logger = logging.getLogger(__name__)
@@ -329,6 +330,7 @@ class NestKeyboard:
         self._label_manager = KeyLabelManager()
         self._key_simulator = KeySimulator()
         self._feedback_manager = FeedbackManager()
+        self._memory_manager = MemoryManager()
         self._active_function_keys: Set[str] = set()
         self._metrics = KeyboardMetrics()
         
@@ -509,6 +511,9 @@ class NestKeyboard:
         self._key_simulator.release_all_keys()
         self._active_function_keys.clear()
         
+        # 메모리 정리
+        self._memory_manager.cleanup_resources()
+        
     @property
     def visual_feedback_enabled(self) -> bool:
         """시각적 피드백 활성화 여부를 반환합니다."""
@@ -660,4 +665,23 @@ class NestKeyboard:
             report.append(f"  Error Rate: {error_rate:.1%}")
             report.append(f"  Avg Latency: {avg_latency*1000:.1f}ms")
             
+        # 메모리 사용 보고서 추가
+        memory_report = self._memory_manager.get_memory_report()
+        report = f"{report}\n\n{memory_report}"
+        
         return "\n".join(report)
+        
+    def _get_cached_key_label(self, key_id: str) -> str:
+        """캐시된 키 레이블을 가져옵니다."""
+        # 캐시에서 레이블 확인
+        cache_key = f"label_{key_id}"
+        cached_label = self._memory_manager.cache_get(cache_key)
+        
+        if cached_label is not None:
+            return cached_label
+            
+        # 캐시 미스: 레이블 생성 및 캐시 저장
+        label = super().get_key_label(key_id)
+        self._memory_manager.cache_set(cache_key, label)
+        
+        return label
