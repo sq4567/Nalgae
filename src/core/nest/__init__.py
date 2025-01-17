@@ -3,6 +3,7 @@
 from .key_state import KeyState, KeyStateManager
 from .ime_manager import IMEState, IMEManager
 from .key_label import KeyLabel, KeyLabelManager
+from .keyboard import Key, NestKeyboard
 
 __all__ = [
     'KeyState',
@@ -11,4 +12,6 @@ __all__ = [
     'IMEManager',
     'KeyLabel',
     'KeyLabelManager',
+    'Key',
+    'NestKeyboard',
 ] 
