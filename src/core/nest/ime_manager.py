@@ -1,96 +1,128 @@
 """IME 상태를 관리하는 모듈입니다."""
 
-from enum import Enum, auto
-import ctypes
-from ctypes import wintypes
+import logging
 import win32api
 import win32con
-import atexit
+import win32gui
+
+from enum import Enum, auto
+from typing import Optional, Callable, Set
+
+# 로거 설정
+logger = logging.getLogger(__name__)
 
 class IMEState(Enum):
     """IME의 상태를 나타내는 열거형 클래스입니다."""
-    ENGLISH = auto()     # 영어 입력 상태
-    KOREAN = auto()      # 한글 입력 상태
+    ENGLISH = auto()  # 영문 입력 모드
+    KOREAN = auto()   # 한글 입력 모드
 
 class IMEManager:
-    """IME의 상태를 관리하는 클래스입니다."""
+    """IME 상태를 관리하는 클래스입니다."""
     
     def __init__(self):
         """IMEManager 클래스를 초기화합니다."""
-        self._state = self._get_current_ime_state()
-        self._hook = None
-        self._hook_function = None
-        self._setup_hook()
-        atexit.register(self._cleanup)
+        self._state = IMEState.ENGLISH
+        self._state_change_callbacks: Set[Callable[[IMEState], None]] = set()
+        self._last_window_handle = None
+        self._initialize_ime()
         
-    def _get_current_ime_state(self) -> IMEState:
-        """현재 시스템의 IME 상태를 확인합니다.
+    def _initialize_ime(self) -> None:
+        """IME 초기 상태를 설정합니다."""
+        try:
+            # 현재 활성 윈도우의 IME 상태 확인
+            hwnd = win32gui.GetForegroundWindow()
+            ime_handle = win32api.ImmGetContext(hwnd)
+            if ime_handle:
+                # IME 상태 확인 (0: 영문, 1: 한글)
+                is_korean = win32api.ImmGetConversionStatus(ime_handle)[0] != 0
+                self._state = IMEState.KOREAN if is_korean else IMEState.ENGLISH
+                win32api.ImmReleaseContext(hwnd, ime_handle)
+                
+            self._last_window_handle = hwnd
+            logger.debug(f"IME initialized to {self._state}")
+        except Exception as e:
+            logger.error(f"Failed to initialize IME: {e}")
+            self._state = IMEState.ENGLISH
+            
+    def _sync_with_system(self) -> None:
+        """시스템의 IME 상태와 동기화합니다."""
+        try:
+            hwnd = win32gui.GetForegroundWindow()
+            
+            # 윈도우가 변경된 경우에만 상태 확인
+            if hwnd != self._last_window_handle:
+                ime_handle = win32api.ImmGetContext(hwnd)
+                if ime_handle:
+                    is_korean = win32api.ImmGetConversionStatus(ime_handle)[0] != 0
+                    new_state = IMEState.KOREAN if is_korean else IMEState.ENGLISH
+                    
+                    if new_state != self._state:
+                        self._state = new_state
+                        self._notify_state_change()
+                        
+                    win32api.ImmReleaseContext(hwnd, ime_handle)
+                    
+                self._last_window_handle = hwnd
+        except Exception as e:
+            logger.error(f"Failed to sync IME state: {e}")
+            
+    def toggle_ime(self) -> None:
+        """IME 상태를 전환합니다."""
+        try:
+            # 현재 활성 윈도우의 IME 상태 전환
+            hwnd = win32gui.GetForegroundWindow()
+            win32api.keybd_event(win32con.VK_HANGUL, 0, 0, 0)
+            win32api.keybd_event(win32con.VK_HANGUL, 0, win32con.KEYEVENTF_KEYUP, 0)
+            
+            # 상태 업데이트
+            self._state = (IMEState.ENGLISH if self._state == IMEState.KOREAN 
+                          else IMEState.KOREAN)
+            
+            self._notify_state_change()
+            logger.debug(f"IME toggled to {self._state}")
+        except Exception as e:
+            logger.error(f"Failed to toggle IME: {e}")
+            
+    def force_state(self, state: IMEState) -> None:
+        """IME 상태를 강제로 설정합니다.
+        
+        Args:
+            state (IMEState): 설정할 IME 상태
+        """
+        if state == self._state:
+            return
+            
+        self.toggle_ime()
+        
+    def add_state_change_callback(self, callback: Callable[[IMEState], None]) -> None:
+        """IME 상태 변경 시 호출될 콜백을 등록합니다.
+        
+        Args:
+            callback (Callable[[IMEState], None]): 호출될 콜백 함수
+        """
+        self._state_change_callbacks.add(callback)
+        
+    def remove_state_change_callback(self, callback: Callable[[IMEState], None]) -> None:
+        """등록된 IME 상태 변경 콜백을 제거합니다.
+        
+        Args:
+            callback (Callable[[IMEState], None]): 제거할 콜백 함수
+        """
+        self._state_change_callbacks.discard(callback)
+        
+    def _notify_state_change(self) -> None:
+        """IME 상태 변경을 구독자들에게 알립니다."""
+        for callback in self._state_change_callbacks:
+            try:
+                callback(self._state)
+            except Exception as e:
+                logger.error(f"Error in IME state change callback: {e}")
+                
+    def is_korean(self) -> bool:
+        """현재 한글 입력 모드인지 확인합니다.
         
         Returns:
-            IMEState: 현재 IME 상태
+            bool: 한글 입력 모드이면 True
         """
-        # 0: 영어, 1: 한글
-        ime_state = win32api.GetKeyState(win32con.VK_HANGUL) & 0x0001
-        return IMEState.KOREAN if ime_state else IMEState.ENGLISH
-        
-    def _setup_hook(self) -> None:
-        """키보드 후킹을 설정합니다."""
-        try:
-            # 후크 프로시저 정의
-            CMPFUNC = ctypes.WINFUNCTYPE(
-                ctypes.c_int,
-                ctypes.c_int,
-                ctypes.c_int,
-                ctypes.POINTER(ctypes.c_void_p)
-            )
-            
-            def hook_procedure(nCode, wParam, lParam):
-                if nCode >= 0:
-                    # IME 상태가 변경되었을 때 상태 업데이트
-                    self._state = self._get_current_ime_state()
-                return ctypes.windll.user32.CallNextHookEx(None, nCode, wParam, lParam)
-            
-            self._hook_function = CMPFUNC(hook_procedure)
-            
-            # 후크 설정
-            self._hook = ctypes.windll.user32.SetWindowsHookExA(
-                13,  # WH_KEYBOARD_LL
-                self._hook_function,
-                None,
-                0
-            )
-            
-            if not self._hook:
-                error_code = ctypes.get_last_error()
-                raise ctypes.WinError(error_code)
-                
-        except Exception as e:
-            print(f"후크 설정 중 오류 발생: {e}")
-            self._hook = None
-            self._hook_function = None
-            
-    def _cleanup(self) -> None:
-        """후킹을 정리합니다."""
-        if self._hook:
-            try:
-                ctypes.windll.user32.UnhookWindowsHookEx(self._hook)
-            except Exception as e:
-                print(f"후크 제거 중 오류 발생: {e}")
-        
-    @property
-    def state(self) -> IMEState:
-        """현재 IME 상태를 반환합니다."""
-        return self._state
-        
-    def is_korean(self) -> bool:
-        """현재 한글 입력 상태인지 확인합니다."""
-        return self.state == IMEState.KOREAN
-        
-    def toggle_ime(self) -> None:
-        """IME 상태를 토글합니다."""
-        win32api.keybd_event(win32con.VK_HANGUL, 0, 0, 0)
-        win32api.keybd_event(win32con.VK_HANGUL, 0, win32con.KEYEVENTF_KEYUP, 0)
-        
-    def __del__(self):
-        """소멸자에서 후킹을 정리합니다."""
-        self._cleanup()
+        self._sync_with_system()  # 시스템 상태와 동기화
+        return self._state == IMEState.KOREAN

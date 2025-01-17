@@ -190,6 +190,10 @@ class NestKeyboard:
         self._label_manager = KeyLabelManager()
         self._key_simulator = KeySimulator()
         self._active_function_keys: Set[str] = set()
+        
+        # IME 상태 변경 콜백 등록
+        self._ime_manager.add_state_change_callback(self._on_ime_state_change)
+        
         self._initialize_keys()
         
     def _initialize_keys(self) -> None:
@@ -256,6 +260,21 @@ class NestKeyboard:
                 self._active_function_keys.discard(key_id)
                 self._key_simulator.release_key(key_id)
                 
+    def _on_ime_state_change(self, new_state: IMEState) -> None:
+        """IME 상태 변경 시 호출되는 콜백 메서드입니다.
+        
+        Args:
+            new_state (IMEState): 새로운 IME 상태
+        """
+        # Caps Lock이 켜져 있고 영문 모드로 전환된 경우 Caps Lock 해제
+        if (new_state == IMEState.ENGLISH and 
+            self._label_manager.is_caps_lock and 
+            'caps_lock' in self._keys):
+            self._keys['caps_lock'].release()
+            self._label_manager.toggle_caps_lock()
+            
+        logger.debug(f"IME state changed to {new_state}")
+        
     def handle_mouse_move(self, key_id: Optional[str]) -> None:
         """마우스 이동 이벤트를 처리합니다.
         
@@ -284,9 +303,6 @@ class NestKeyboard:
         
         # 한/영 키 처리
         if key_id == 'hangul':
-            # Caps Lock이 켜져 있으면 영문 모드로 전환 시 끄기
-            if self._label_manager.is_caps_lock and not self._ime_manager.is_korean():
-                self._label_manager.toggle_caps_lock()
             self._ime_manager.toggle_ime()
             return
             
@@ -294,7 +310,7 @@ class NestKeyboard:
         if key_id == 'caps_lock':
             # 한글 모드에서는 영문 모드로 전환
             if self._ime_manager.is_korean():
-                self._ime_manager.toggle_ime()
+                self._ime_manager.force_state(IMEState.ENGLISH)
             self._label_manager.toggle_caps_lock()
             return
             
@@ -328,6 +344,9 @@ class NestKeyboard:
             
     def cleanup(self) -> None:
         """키보드 정리 작업을 수행합니다."""
+        # IME 콜백 제거
+        self._ime_manager.remove_state_change_callback(self._on_ime_state_change)
+        
         # 모든 키 해제
         self._key_simulator.release_all_keys()
         self._active_function_keys.clear()
