@@ -307,15 +307,16 @@ Nalgae/
 │   │   ├── default.json       # 기본 테마 설정
 │   │   ├── high_contrast.json # 고대비 테마 설정
 │   │   └── pastel.json        # 파스텔 테마 설정
+├── config/                    # 프로그램 설정 파일
+│   └── settings.json          # 사용자 설정 파일
 ├── docs/                      # 문서화 파일
 │   ├── PM/                    # 프로젝트 관리자 관련 파일
 │   ├── tech_lead/             # 기술 리드 관련 파일
 │   ├── UXUI/                  # UX/UI 관련 파일
 │   ├── CHANGELOG.md           # 변경 사항 기록
 │   └── README.md              # 프로젝트 소개 및 실행 방법
-├── requirements/              # 프로젝트 의존성 관리
-│   ├── dev-requirements.txt   # 개발 및 테스트 의존성
-│   └── requirements.txt       # Python 패키지 의존성
+├── logs/                      # 로그 파일 디렉토리
+│   └── nalgae_YYYYMMDD.log    # 날짜별 로그 파일
 ├── src/                       # 소스 코드 디렉토리
 │   ├── accessibility/         # 접근성 관련 모듈
 │   │   ├── keyboard_hooks.py  # 키보드 후킹 관련 로직
@@ -351,16 +352,18 @@ Nalgae/
 ├── manual_tests/              # 수동 테스트 문서
 │   ├── accessibility/         # 접근성 관련 테스트 체크리스트
 │   ├── beak/                  # 부리 관련 테스트 체크리스트
-│   ├── feathering/           # 날개 꾸미기 관련 테스트 체크리스트
-│   ├── guide/                # 길잡이 관련 테스트 체크리스트
-│   ├── nest/                 # 둥지 관련 테스트 체크리스트
-│   ├── performance/          # 성능 테스트 체크리스트
-│   └── utils/                # 유틸리티 기능 테스트 체크리스트
+│   ├── feathering/            # 날개 꾸미기 관련 테스트 체크리스트
+│   ├── guide/                 # 길잡이 관련 테스트 체크리스트
+│   ├── nest/                  # 둥지 관련 테스트 체크리스트
+│   ├── performance/           # 성능 테스트 체크리스트
+│   └── utils/                 # 유틸리티 기능 테스트 체크리스트
 ├── venv/                      # Python 가상환경
 ├── .gitignore                 # Git에 포함되지 않을 파일/디렉토리 목록
 ├── LICENSE                    # 라이선스 파일
+├── requirements.txt           # Python 패키지 의존성 목록
 └── setup.py                   # 패키지 설치 및 배포 설정
 ```
+
 ### **구조 설명**
 1. **`assets/`**: 프로그램의 모든 정적 리소스 관리
    - `fonts/`: 프로그램에서 사용하는 모든 폰트 파일
@@ -368,15 +371,17 @@ Nalgae/
    - `sounds/`: 키 입력음 등 프로그램에서 사용되는 효과음
    - `themes/`: 프로그램의 시각적 테마 설정 파일들
      - 각 테마별 색상, 폰트, 크기 등의 스타일 정의
-2. **`docs/`**: 프로젝트 문서화
+2. **`config/`**: 프로그램 설정 파일
+   - `settings.json`: 사용자 설정 파일 (윈도우 크기, 테마, 기능 활성화 여부 등)
+3. **`docs/`**: 프로젝트 문서화
    - `PM/`: 프로젝트 관리 문서 (PRD, 개발 가이드 등)
    - `tech_lead/`: 기술 설계 문서 및 아키텍처 가이드
    - `UXUI/`: UI/UX 디자인 문서 및 와이어프레임
-  - 프로젝트 전반적인 문서 (`README.md`, `CHANGELOG.md`)
-3. **`requirements/`**: Python 패키지 의존성 관리
-   - `dev-requirements.txt`: 개발 및 테스트 의존성
-   - `requirements.txt`: 프로덕션 환경에 필요한 패키지 목록
-4. **`src/`**: 프로그램 소스 코드
+   - 프로젝트 전반적인 문서 (`README.md`, `CHANGELOG.md`)
+4. **`logs/`**: 프로그램 로그 파일
+   - 날짜별 로그 파일 (예: `nalgae_20240315.log`)
+   - 디버그 정보, 에러 메시지 등 기록
+5. **`src/`**: 프로그램 소스 코드
    - `accessibility/`: Windows 접근성 관련 핵심 기능
      - 키보드/마우스 후킹 및 Windows API 연동
    - `core/`: 프로그램의 주요 기능 모듈
@@ -392,16 +397,17 @@ Nalgae/
    - `utils/`: 공통 유틸리티 기능
      - 설정, 로깅, 성능 모니터링 등
    - `main.py`: 프로그램 진입점
-5. **`manual_tests/`**: 테스트 문서
+6. **`manual_tests/`**: 테스트 문서
    - 각 모듈별 수동 테스트 시나리오
    - 성능 테스트 체크리스트
    - 모든 테스트는 `Markdown` 문서로 관리
-6. **`venv/`**: Python 가상환경
+7. **`venv/`**: Python 가상환경
    - 프로젝트별 독립적인 Python 환경 관리
    - 의존성 충돌 방지 및 개발 환경 일관성 유지
-7. **최상위 설정 파일**
+8. **최상위 설정 파일**
    - `.gitignore`: Git 버전 관리 제외 대상 정의
    - `LICENSE`: 프로젝트 라이선스 정보
+   - `requirements.txt`: Python 패키지 의존성 목록
    - `setup.py`: 패키지 설치 및 배포 설정
 
 ### **주요 설계 원칙**
