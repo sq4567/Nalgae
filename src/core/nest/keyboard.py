@@ -250,13 +250,20 @@ class NestKeyboard:
         
         # 한/영 키 처리
         if key_id == 'hangul':
+            # Caps Lock이 켜져 있으면 영문 모드로 전환 시 끄기
+            if self.label_manager.is_caps_lock and not self.ime_manager.is_korean():
+                self.label_manager.toggle_caps_lock()
             self.ime_manager.toggle_ime()
             return
             
         # Caps Lock 키 처리
         if key_id == 'caps_lock':
+            # 한글 모드에서는 영문 모드로 전환
+            if self.ime_manager.is_korean():
+                self.ime_manager.toggle_ime()
             self.label_manager.toggle_caps_lock()
-            
+            return
+        
         # 기능 키들 먼저 시뮬레이션
         for fkey_id in self._active_function_keys:
             fkey = self.keys[fkey_id]
@@ -307,11 +314,10 @@ class NestKeyboard:
         shift_active = (self.keys['shift'].state_manager.state in 
                        {KeyState.PRESSED, KeyState.LOCKED})
         
-        # Alt 키가 활성화되었는지 확인
-        alt_active = (self.keys['alt'].state_manager.state in 
-                     {KeyState.PRESSED, KeyState.LOCKED})
+        # IME 상태 확인
+        is_korean = self.ime_manager.is_korean()
         
-        return self.label_manager.get_label(key_id, shift_active, alt_active)
+        return self.label_manager.get_label(key_id, shift_active, is_korean)
         
     def is_key_active(self, key_id: str) -> bool:
         """특정 키가 활성 상태인지 확인합니다.
@@ -322,4 +328,4 @@ class NestKeyboard:
         Returns:
             bool: 키가 활성 상태이면 True
         """
-        return key_id in self.keys and self.keys[key_id].state_manager.is_active() 
+        return key_id in self.keys and self.keys[key_id].state_manager.is_active()
