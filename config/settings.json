@@ -1,0 +1,25 @@
+{
+    "window": {
+        "always_on_top": true,
+        "opacity": 0.9,
+        "width": 800,
+        "height": 400
+    },
+    "keyboard": {
+        "layout": "default",
+        "theme": "default",
+        "sound_enabled": true,
+        "sound_volume": 0.5
+    },
+    "accessibility": {
+        "high_contrast": false,
+        "key_size": "medium",
+        "animation_speed": "normal"
+    },
+    "features": {
+        "guide_enabled": true,
+        "breeze_enabled": true,
+        "warp_enabled": true,
+        "transformation_enabled": true
+    }
+}
