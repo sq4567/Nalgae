@@ -1,6 +1,6 @@
 """키보드의 핵심 기능을 구현하는 모듈입니다."""
 
-from typing import Dict, Optional
+from typing import Dict, Optional, Tuple
 import time
 import win32api
 import win32con
@@ -12,7 +12,17 @@ from .key_label import KeyLabel, KeyLabelManager
 class Key:
     """하나의 키를 나타내는 클래스입니다."""
     
-    def __init__(self, key_id: str, virtual_key: int, is_function_key: bool = False, long_press_threshold: float = 1.0):
+    # 상태별 기본 색상 (RGB)
+    DEFAULT_COLORS = {
+        KeyState.NORMAL: (255, 255, 255),    # 흰색
+        KeyState.HOVER: (224, 240, 255),     # 연한 파랑
+        KeyState.PRESSED: (204, 229, 255),   # 중간 파랑
+        KeyState.LOCKED: (58, 134, 255),     # 진한 파랑
+        KeyState.DISABLED: (169, 169, 169)   # 회색
+    }
+    
+    def __init__(self, key_id: str, virtual_key: int, is_function_key: bool = False, 
+                 long_press_threshold: float = 1.0, colors: Optional[Dict[KeyState, Tuple[int, int, int]]] = None):
         """Key 클래스를 초기화합니다.
         
         Args:
@@ -20,6 +30,7 @@ class Key:
             virtual_key (int): Windows Virtual Key Code
             is_function_key (bool, optional): 기능 키 여부. Defaults to False.
             long_press_threshold (float, optional): 길게 누르기로 판단할 시간(초). Defaults to 1.0.
+            colors (Optional[Dict[KeyState, Tuple[int, int, int]]], optional): 상태별 색상. Defaults to None.
         """
         self.key_id = key_id
         self.virtual_key = virtual_key
@@ -27,6 +38,7 @@ class Key:
         self.long_press_threshold = long_press_threshold
         self.state_manager = KeyStateManager()
         self._press_start_time: Optional[float] = None
+        self._colors = colors or self.DEFAULT_COLORS.copy()
         
     def press(self) -> None:
         """키를 누릅니다."""
@@ -54,6 +66,37 @@ class Key:
         # 실제 키 해제 시뮬레이션
         win32api.keybd_event(self.virtual_key, 0, win32con.KEYEVENTF_KEYUP, 0)
         self._press_start_time = None
+        
+    def handle_hover(self, is_hovering: bool) -> None:
+        """마우스 호버 상태를 처리합니다.
+        
+        Args:
+            is_hovering (bool): 호버 중인지 여부
+        """
+        if not self.state_manager.is_active():
+            return
+            
+        if is_hovering and self.state_manager.state == KeyState.NORMAL:
+            self.state_manager.set_state(KeyState.HOVER)
+        elif not is_hovering and self.state_manager.state == KeyState.HOVER:
+            self.state_manager.set_state(KeyState.NORMAL)
+            
+    def get_color(self) -> Tuple[int, int, int]:
+        """현재 상태에 따른 색상을 반환합니다.
+        
+        Returns:
+            Tuple[int, int, int]: RGB 색상값
+        """
+        return self._colors[self.state_manager.state]
+        
+    def set_color(self, state: KeyState, color: Tuple[int, int, int]) -> None:
+        """특정 상태의 색상을 설정합니다.
+        
+        Args:
+            state (KeyState): 색상을 설정할 상태
+            color (Tuple[int, int, int]): RGB 색상값
+        """
+        self._colors[state] = color
 
 class NestKeyboard:
     """화상 키보드의 핵심 기능을 구현하는 클래스입니다."""
@@ -106,6 +149,56 @@ class NestKeyboard:
         for key_id, vk in special_keys.items():
             self.keys[key_id] = Key(key_id, vk, is_function_key=False)
             
+    def handle_mouse_move(self, key_id: Optional[str]) -> None:
+        """마우스 이동 이벤트를 처리합니다.
+        
+        Args:
+            key_id (Optional[str]): 마우스가 위치한 키의 식별자. 키 위에 없으면 None
+        """
+        # 모든 키의 호버 상태 업데이트
+        for k_id, key in self.keys.items():
+            key.handle_hover(k_id == key_id)
+            
+    def handle_mouse_press(self, key_id: str) -> None:
+        """마우스 클릭 이벤트를 처리합니다.
+        
+        Args:
+            key_id (str): 클릭된 키의 식별자
+        """
+        self.press_key(key_id)
+        
+    def handle_mouse_release(self, key_id: str) -> None:
+        """마우스 클릭 해제 이벤트를 처리합니다.
+        
+        Args:
+            key_id (str): 해제된 키의 식별자
+        """
+        self.release_key(key_id)
+        
+    def get_key_color(self, key_id: str) -> Optional[Tuple[int, int, int]]:
+        """특정 키의 현재 색상을 가져옵니다.
+        
+        Args:
+            key_id (str): 색상을 가져올 키의 식별자
+            
+        Returns:
+            Optional[Tuple[int, int, int]]: RGB 색상값. 키가 없으면 None
+        """
+        if key_id not in self.keys:
+            return None
+        return self.keys[key_id].get_color()
+        
+    def set_key_color(self, key_id: str, state: KeyState, color: Tuple[int, int, int]) -> None:
+        """특정 키의 특정 상태 색상을 설정합니다.
+        
+        Args:
+            key_id (str): 색상을 설정할 키의 식별자
+            state (KeyState): 색상을 설정할 상태
+            color (Tuple[int, int, int]): RGB 색상값
+        """
+        if key_id in self.keys:
+            self.keys[key_id].set_color(state, color)
+        
     def press_key(self, key_id: str) -> None:
         """특정 키를 누릅니다.
         
