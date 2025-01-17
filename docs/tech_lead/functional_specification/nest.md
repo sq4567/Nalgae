@@ -32,69 +32,65 @@
 ### 4. 디렉터리 구조
 ```plaintext
 Nalgae/
-├── assets/                    # 정적 파일 (이미지, 아이콘, 사운드, 폰트)
-│   ├── fonts/                 # 폰트 파일
-│   ├── icons/                 # 아이콘 파일
-│   ├── sounds/                # 효과음 파일
-│   ├── themes/                # 테마 관련 파일
-│   │   ├── default.json       # 기본 테마 설정
-│   │   ├── high_contrast.json # 고대비 테마 설정
-│   │   └── pastel.json        # 파스텔 테마 설정
-├── config/                    # 프로그램 설정 파일
-│   └── settings.json          # 사용자 설정 파일
-├── docs/                      # 문서화 파일
-│   ├── PM/                    # 프로젝트 관리자 관련 파일
-│   ├── tech_lead/             # 기술 리드 관련 파일
-│   ├── UXUI/                  # UX/UI 관련 파일
-│   ├── CHANGELOG.md           # 변경 사항 기록
-│   └── README.md              # 프로젝트 소개 및 실행 방법
-├── logs/                      # 로그 파일 디렉토리
-│   └── nalgae_YYYYMMDD.log    # 날짜별 로그 파일
-├── src/                       # 소스 코드 디렉토리
-│   ├── accessibility/         # 접근성 관련 모듈
-│   │   ├── keyboard_hooks.py  # 키보드 후킹 관련 로직
-│   │   ├── mouse_hooks.py     # 마우스 후킹 관련 로직
-│   │   └── windows_api.py     # Windows API 연동 로직
-│   ├── core/                  # 핵심 기능 모듈
-│   │   ├── beak.py            # 부리 로직
-│   │   ├── feathering.py      # 날개 꾸미기 로직
-│   │   ├── guide.py           # 길잡이 로직
-│   │   ├── natural_typing.py  # 내추럴 타이핑 로직
-│   │   ├── nest.py            # 둥지 로직
-│   │   ├── transformation.py  # 변신 로직
-│   │   └── warp.py            # 워프 로직
-│   ├── data/                  # 데이터 처리 관련 모듈
-│   │   ├── presets.json       # 기본 설정 및 키보드 레이아웃
-│   │   └── user_data.json     # 사용자 정의 데이터 저장소
-│   ├── security/              # 보안 관련 모듈
-│   │   ├── encryption.py      # 데이터 암호화/복호화
-│   │   └── gdpr.py            # GDPR 준수 관련 로직
-│   ├── settings/              # 설정 관련 모듈
-│   │   ├── layout_manager.py  # 레이아웃 관리
-│   │   ├── profile_manager.py # 사용자 프로필 관리
-│   │   └── theme_manager.py   # 테마 관리
-│   ├── ui/                    # UI 관련 모듈
-│   │   ├── main_window.qml    # 메인 윈도우 QML 파일
-│   │   ├── nest.qml           # 둥지 QML 파일
-│   │   └── settings.qml       # 설정 창 QML 파일
-│   ├── utils/                 # 유틸리티 함수 모음
-│   │   ├── config.py          # 설정 및 환경 변수 처리
-│   │   ├── logger.py          # 로깅 유틸리티
-│   │   └── performance.py     # 성능 모니터링 도구
-│   └── main.py                # 프로그램 진입점
-├── manual_tests/              # 수동 테스트 문서
-│   ├── accessibility/         # 접근성 관련 테스트 체크리스트
-│   ├── beak/                  # 부리 관련 테스트 체크리스트
-│   ├── feathering/            # 날개 꾸미기 관련 테스트 체크리스트
-│   ├── guide/                 # 길잡이 관련 테스트 체크리스트
-│   ├── nest/                  # 둥지 관련 테스트 체크리스트
-│   ├── performance/           # 성능 테스트 체크리스트
-│   └── utils/                 # 유틸리티 기능 테스트 체크리스트
-├── venv/                      # Python 가상환경
-├── .gitignore                 # Git에 포함되지 않을 파일/디렉토리 목록
-├── LICENSE                    # 라이선스 파일
-├── requirements.txt           # Python 패키지 의존성 목록
-└── setup.py                   # 패키지 설치 및 배포 설정
+├── assets/
+│   ├── fonts/
+│   ├── icons/
+│   ├── sounds/
+│   └── themes/
+│       ├── default.json
+│       ├── high_contrast.json
+│       └── pastel.json
+├── docs/
+│   ├── PM/
+│   ├── tech_lead/
+│   ├── UXUI/
+│   ├── CHANGELOG.md
+│   └── README.md
+├── manual_tests/
+│   ├── accessibility/
+│   ├── beak/
+│   ├── feathering/
+│   ├── guide/
+│   ├── nest/
+│   ├── performance/
+│   └── utils/
+├── src/
+│   ├── accessibility/
+│   │   ├── keyboard_hooks.py
+│   │   ├── mouse_hooks.py
+│   │   └── windows_api.py
+│   ├── core/
+│   │   ├── beak.py
+│   │   ├── feathering.py
+│   │   ├── guide.py
+│   │   ├── natural_typing.py
+│   │   ├── nest.py
+│   │   ├── transformation.py
+│   │   └── warp.py
+│   ├── data/
+│   │   ├── presets.json
+│   │   └── user_data.json
+│   ├── security/
+│   │   ├── encryption.py
+│   │   └── gdpr.py
+│   ├── settings/
+│   │   ├── layout_manager.py
+│   │   ├── profile_manager.py
+│   │   └── theme_manager.py
+│   ├── ui/
+│   │   ├── main_window.qml
+│   │   ├── nest.qml
+│   │   └── settings.qml
+│   ├── utils/
+│   │   ├── config.py
+│   │   ├── logger.py
+│   │   └── performance.py
+│   └── main.py
+├── venv/
+├── .gitignore
+├── LICENSE
+├── requirements.txt
+└── setup.py
 ```
 
 ### 5. 구현 가이드 (의사코드)
@@ -187,17 +183,17 @@ Item {
 ### 6. 수동 테스트 방향성
 #### 기본 테스트 체크리스트
 - **UI 테스트 체크리스트**:
-  - 각 테마(basic, contrast, pastel) 적용 시 정상 렌더링 여부 육안 확인: y/n
-  - 기본/호버/클릭/고정/비활성 상태의 색상 변화 육안 확인: y/n
+  - [ ] 각 테마(basic, contrast, pastel) 적용 시 정상 렌더링 여부 육안 확인
+  - [ ] 기본/호버/클릭/고정/비활성 상태의 색상 변화 육안 확인
 - **기능 테스트 체크리스트**:
-  - 104 Key, 87 Key, 사용자 정의 레이아웃 간 수동 전환 테스트: y/n
-  - 키 클릭 시 시각적/청각적 피드백 수동 확인: y/n
-  - 각 키의 입력값이 정확히 전달되는지 수동 확인: y/n
+  - [ ] 104 Key, 87 Key, 사용자 정의 레이아웃 간 수동 전환 테스트
+  - [ ] 키 클릭 시 시각적/청각적 피드백 수동 확인
+  - [ ] 각 키의 입력값이 정확히 전달되는지 수동 확인
 
 #### 예외 상황 체크리스트
-- 네트워크 연결 없을 때 동작 확인: y/n
-- 메모리 부족 상황에서의 동작 확인: y/n
-- 잘못된 입력값 처리 확인: y/n
+- [ ] 네트워크 연결 없을 때 동작 확인
+- [ ] 메모리 부족 상황에서의 동작 확인
+- [ ] 잘못된 입력값 처리 확인
 
 ### 7. 와이어프레임 기반 UX 강화
 - **레이아웃 동작**:

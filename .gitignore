@@ -52,3 +52,6 @@ Thumbs.db
 # Project specific
 user_data.json
 *.bak
+
+# Docs
+docs/*_save.md
