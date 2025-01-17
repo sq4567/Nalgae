@@ -1,11 +1,14 @@
 """키보드의 핵심 기능을 구현하는 모듈입니다."""
 
 import logging
-from typing import Dict, Optional, Tuple, Set
+from typing import Dict, Optional, Tuple, Set, List
 import time
 import win32api
 import win32con
 from PySide6.QtGui import QColor
+from functools import wraps
+from dataclasses import dataclass
+from datetime import datetime
 
 from .key_state import KeyState, KeyStateManager, InvalidStateTransitionError
 from .ime_manager import IMEState, IMEManager
@@ -15,6 +18,119 @@ from .feedback_manager import FeedbackManager
 
 # 로거 설정
 logger = logging.getLogger(__name__)
+
+# 재시도 관련 상수
+MAX_RETRY_COUNT = 3
+RETRY_DELAY = 0.1  # seconds
+
+# Health Check 관련 상수
+HEALTH_CHECK_INTERVAL = 5.0  # seconds
+MAX_ERROR_RATE = 0.1  # 10%
+MAX_LATENCY = 0.1  # seconds
+
+@dataclass
+class KeyboardMetrics:
+    """키보드 성능 메트릭을 저장하는 클래스입니다."""
+    total_operations: int = 0
+    failed_operations: int = 0
+    total_latency: float = 0.0
+    last_check_time: float = time.time()
+    operation_history: List[Tuple[str, float, bool]] = None  # (operation, latency, success)
+    
+    def __post_init__(self):
+        self.operation_history = []
+        
+    def add_operation(self, operation: str, latency: float, success: bool) -> None:
+        """작업 결과를 기록합니다.
+        
+        Args:
+            operation (str): 작업 종류
+            latency (float): 작업 소요 시간
+            success (bool): 작업 성공 여부
+        """
+        self.total_operations += 1
+        self.total_latency += latency
+        if not success:
+            self.failed_operations += 1
+        self.operation_history.append((operation, latency, success))
+        
+    def get_error_rate(self) -> float:
+        """오류율을 계산합니다.
+        
+        Returns:
+            float: 오류율 (0.0 ~ 1.0)
+        """
+        if self.total_operations == 0:
+            return 0.0
+        return self.failed_operations / self.total_operations
+        
+    def get_average_latency(self) -> float:
+        """평균 지연 시간을 계산합니다.
+        
+        Returns:
+            float: 평균 지연 시간(초)
+        """
+        if self.total_operations == 0:
+            return 0.0
+        return self.total_latency / self.total_operations
+        
+    def reset(self) -> None:
+        """메트릭을 초기화합니다."""
+        self.total_operations = 0
+        self.failed_operations = 0
+        self.total_latency = 0.0
+        self.last_check_time = time.time()
+        self.operation_history.clear()
+
+def measure_performance(operation_name: str):
+    """작업의 성능을 측정하는 데코레이터입니다.
+    
+    Args:
+        operation_name (str): 작업 이름
+    """
+    def decorator(func):
+        @wraps(func)
+        def wrapper(self, *args, **kwargs):
+            if not hasattr(self, '_metrics'):
+                return func(self, *args, **kwargs)
+                
+            start_time = time.time()
+            success = True
+            try:
+                result = func(self, *args, **kwargs)
+                return result
+            except Exception as e:
+                success = False
+                raise e
+            finally:
+                latency = time.time() - start_time
+                self._metrics.add_operation(operation_name, latency, success)
+        return wrapper
+    return decorator
+
+def with_retry(max_retries: int = MAX_RETRY_COUNT, delay: float = RETRY_DELAY):
+    """작업 실패 시 자동으로 재시도하는 데코레이터
+
+    Args:
+        max_retries (int): 최대 재시도 횟수
+        delay (float): 재시도 간 대기 시간(초)
+    """
+    def decorator(func):
+        @wraps(func)
+        def wrapper(*args, **kwargs):
+            last_exception = None
+            for attempt in range(max_retries):
+                try:
+                    return func(*args, **kwargs)
+                except Exception as e:
+                    last_exception = e
+                    logger.warning(f"Attempt {attempt + 1} failed: {str(e)}")
+                    if attempt < max_retries - 1:
+                        time.sleep(delay)
+            logger.error(f"All {max_retries} attempts failed: {str(last_exception)}")
+            raise last_exception
+        return wrapper
+    return decorator
 
 class Key:
     """키보드의 개별 키를 나타내는 클래스입니다."""
@@ -35,6 +151,7 @@ class Key:
         self._is_function_key = is_function_key
         self._long_press_threshold = long_press_threshold
         self._press_start_time = None
+        self._last_known_good_state = None
         
         # 상태 관리자 초기화
         self._state_manager = KeyStateManager()
@@ -53,6 +170,55 @@ class Key:
             self._state_manager.add_state_change_callback(
                 state, self._on_state_change
             )
+    
+    def save_state(self) -> None:
+        """현재 상태를 마지막으로 알려진 정상 상태로 저장합니다."""
+        self._last_known_good_state = self.state
+    
+    def restore_state(self) -> None:
+        """마지막으로 알려진 정상 상태로 복구합니다."""
+        if self._last_known_good_state is not None:
+            try:
+                self._state_manager.set_state(self._last_known_good_state)
+                logger.info(f"Key {self._key_code} restored to {self._last_known_good_state}")
+            except InvalidStateTransitionError as e:
+                logger.error(f"Failed to restore key {self._key_code}: {str(e)}")
+
+    @with_retry()
+    def press(self) -> None:
+        """키를 누릅니다."""
+        if not self._state_manager.is_active():
+            return
+            
+        try:
+            self.save_state()
+            self._state_manager.set_state(KeyState.PRESSED)
+            self._press_start_time = time.time()
+        except InvalidStateTransitionError as e:
+            logger.warning(f"Invalid key press attempt on key {self._key_code}")
+            self.restore_state()
+            raise e
+
+    @with_retry()
+    def release(self) -> None:
+        """키를 뗍니다."""
+        if not self._state_manager.is_active():
+            return
+            
+        try:
+            self.save_state()
+            # 길게 누름 여부 확인
+            if (self._press_start_time and 
+                time.time() - self._press_start_time >= self._long_press_threshold):
+                self._state_manager.set_state(KeyState.LOCKED)
+            else:
+                self._state_manager.set_state(KeyState.NORMAL)
+                
+            self._press_start_time = None
+        except InvalidStateTransitionError as e:
+            logger.warning(f"Invalid key release attempt on key {self._key_code}")
+            self.restore_state()
+            raise e
     
     @property
     def key_code(self) -> str:
@@ -92,34 +258,6 @@ class Key:
             color (QColor): 새로운 색상
         """
         self._colors[state] = color
-    
-    def press(self) -> None:
-        """키를 누릅니다."""
-        if not self._state_manager.is_active():
-            return
-            
-        try:
-            self._state_manager.set_state(KeyState.PRESSED)
-            self._press_start_time = time.time()
-        except InvalidStateTransitionError:
-            logger.warning(f"Invalid key press attempt on key {self._key_code}")
-    
-    def release(self) -> None:
-        """키를 뗍니다."""
-        if not self._state_manager.is_active():
-            return
-            
-        try:
-            # 길게 누름 여부 확인
-            if (self._press_start_time and 
-                time.time() - self._press_start_time >= self._long_press_threshold):
-                self._state_manager.set_state(KeyState.LOCKED)
-            else:
-                self._state_manager.set_state(KeyState.NORMAL)
-                
-            self._press_start_time = None
-        except InvalidStateTransitionError:
-            logger.warning(f"Invalid key release attempt on key {self._key_code}")
     
     def hover(self) -> None:
         """키에 마우스를 올립니다."""
@@ -192,6 +330,7 @@ class NestKeyboard:
         self._key_simulator = KeySimulator()
         self._feedback_manager = FeedbackManager()
         self._active_function_keys: Set[str] = set()
+        self._metrics = KeyboardMetrics()
         
         # IME 상태 변경 콜백 등록
         self._ime_manager.add_state_change_callback(self._on_ime_state_change)
@@ -285,6 +424,7 @@ class NestKeyboard:
             
         logger.debug(f"IME state changed to {new_state}")
         
+    @measure_performance("mouse_move")
     def handle_mouse_move(self, key_id: Optional[str]) -> None:
         """마우스 이동 이벤트를 처리합니다.
         
@@ -300,6 +440,7 @@ class NestKeyboard:
         if key_id in self._keys:
             self._keys[key_id].hover()
             
+    @measure_performance("mouse_press")
     def handle_mouse_press(self, key_id: str) -> None:
         """마우스 클릭 이벤트를 처리합니다.
         
@@ -336,6 +477,7 @@ class NestKeyboard:
             # 일반 키는 활성화된 기능 키들과 함께 시뮬레이션
             self._key_simulator.press_key(key_id)
             
+    @measure_performance("mouse_release")
     def handle_mouse_release(self, key_id: str) -> None:
         """마우스 클릭 해제 이벤트를 처리합니다.
         
@@ -444,3 +586,78 @@ class NestKeyboard:
             bool: 키가 활성 상태이면 True
         """
         return key_id in self._keys and self._keys[key_id].is_active()
+        
+    def check_health(self) -> Tuple[bool, str]:
+        """키보드의 상태를 점검합니다.
+        
+        Returns:
+            Tuple[bool, str]: (정상 여부, 상태 메시지)
+        """
+        current_time = time.time()
+        if current_time - self._metrics.last_check_time < HEALTH_CHECK_INTERVAL:
+            return True, "Health check skipped (too frequent)"
+            
+        # 성능 메트릭 분석
+        error_rate = self._metrics.get_error_rate()
+        avg_latency = self._metrics.get_average_latency()
+        
+        issues = []
+        
+        # 오류율 검사
+        if error_rate > MAX_ERROR_RATE:
+            issues.append(f"High error rate: {error_rate:.1%}")
+            
+        # 지연 시간 검사
+        if avg_latency > MAX_LATENCY:
+            issues.append(f"High latency: {avg_latency*1000:.1f}ms")
+            
+        # 키 상태 검사
+        inactive_keys = [key_id for key_id, key in self._keys.items() 
+                        if not key.is_active()]
+        if inactive_keys:
+            issues.append(f"Inactive keys: {', '.join(inactive_keys)}")
+            
+        # IME 상태 검사
+        if self._ime_manager._sync_failures > 0:
+            issues.append(f"IME sync failures: {self._ime_manager._sync_failures}")
+            
+        # 메트릭 초기화
+        self._metrics.reset()
+        
+        if issues:
+            return False, " | ".join(issues)
+        return True, "All systems operational"
+        
+    def get_performance_report(self) -> str:
+        """성능 보고서를 생성합니다.
+        
+        Returns:
+            str: 성능 보고서
+        """
+        report = ["Keyboard Performance Report", "=" * 30]
+        
+        # 기본 메트릭
+        report.append(f"Total Operations: {self._metrics.total_operations}")
+        report.append(f"Error Rate: {self._metrics.get_error_rate():.1%}")
+        report.append(f"Average Latency: {self._metrics.get_average_latency()*1000:.1f}ms")
+        
+        # 작업별 통계
+        op_stats = {}
+        for op, latency, success in self._metrics.operation_history:
+            if op not in op_stats:
+                op_stats[op] = {"count": 0, "failures": 0, "total_latency": 0.0}
+            op_stats[op]["count"] += 1
+            op_stats[op]["total_latency"] += latency
+            if not success:
+                op_stats[op]["failures"] += 1
+                
+        report.append("\nOperation Statistics:")
+        for op, stats in op_stats.items():
+            avg_latency = stats["total_latency"] / stats["count"]
+            error_rate = stats["failures"] / stats["count"]
+            report.append(f"- {op}:")
+            report.append(f"  Count: {stats['count']}")
+            report.append(f"  Error Rate: {error_rate:.1%}")
+            report.append(f"  Avg Latency: {avg_latency*1000:.1f}ms")
+            
+        return "\n".join(report)
