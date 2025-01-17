@@ -10,62 +10,30 @@ import QtQuick.Controls
 import Nalgae
 
 Rectangle {
-    id: rectangle
+    id: bg
     width: Constants.width
     height: Constants.height
+    color: "#484848"
+    border.width: 0
 
-    color: Constants.backgroundColor
 
-    Button {
-        id: button
-        text: qsTr("Press me")
-        anchors.verticalCenter: parent.verticalCenter
-        checkable: true
-        anchors.horizontalCenter: parent.horizontalCenter
-
-        Connections {
-            target: button
-            onClicked: animation.start()
-        }
+    Rectangle {
+        id: esc
+        x: 30
+        y: 30
+        width: 70
+        height: 70
+        visible: true
+        color: "#ffffff"
     }
 
-    Text {
-        id: label
-        text: qsTr("Hello Nalgae")
-        anchors.top: button.bottom
-        font.family: Constants.font.family
-        anchors.topMargin: 45
-        anchors.horizontalCenter: parent.horizontalCenter
-
-        SequentialAnimation {
-            id: animation
-
-            ColorAnimation {
-                id: colorAnimation1
-                target: rectangle
-                property: "color"
-                to: "#2294c6"
-                from: Constants.backgroundColor
-            }
-
-            ColorAnimation {
-                id: colorAnimation2
-                target: rectangle
-                property: "color"
-                to: Constants.backgroundColor
-                from: "#2294c6"
-            }
-        }
+    MouseArea {
+        id: mouseArea
+        anchors.fill: parent
     }
     states: [
         State {
             name: "clicked"
-            when: button.checked
-
-            PropertyChanges {
-                target: label
-                text: qsTr("Button Checked")
-            }
         }
     ]
 }

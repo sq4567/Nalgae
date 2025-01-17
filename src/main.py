@@ -38,8 +38,8 @@ class NalgaeWindow(QMainWindow):
         
         # 크기 및 위치 설정
         self.resize(
-            config.get("window.width", 800),
-            config.get("window.height", 400)
+            config.get("window.width", 1100),
+            config.get("window.height", 450)
         )
         self.center()
         
