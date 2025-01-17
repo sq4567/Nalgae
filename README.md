@@ -72,4 +72,7 @@ python src/main.py
 현재 이 프로젝트는 개발 초기 단계입니다. 기여 가이드는 추후 업데이트될 예정입니다.
 
 ## 라이선스
-이 프로젝트는 MIT 라이선스를 따릅니다. 자세한 내용은 [LICENSE](LICENSE) 파일을 참조하세요. 
+이 프로젝트는 MIT 라이선스를 따릅니다. 자세한 내용은 [LICENSE](LICENSE) 파일을 참조하세요.
+
+## Credits
+- Keyboard sound samples from [kbsim](https://github.com/tplai/kbsim) (MIT License) 

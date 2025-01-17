@@ -11,6 +11,7 @@ from .key_state import KeyState, KeyStateManager, InvalidStateTransitionError
 from .ime_manager import IMEState, IMEManager
 from .key_label import KeyLabel, KeyLabelManager
 from .key_simulator import KeySimulator
+from .feedback_manager import FeedbackManager
 
 # 로거 설정
 logger = logging.getLogger(__name__)
@@ -189,6 +190,7 @@ class NestKeyboard:
         self._ime_manager = IMEManager()
         self._label_manager = KeyLabelManager()
         self._key_simulator = KeySimulator()
+        self._feedback_manager = FeedbackManager()
         self._active_function_keys: Set[str] = set()
         
         # IME 상태 변경 콜백 등록
@@ -209,19 +211,25 @@ class NestKeyboard:
         }
         for key_id, (label_text, is_function) in function_keys.items():
             label = self._label_manager.create_label(key_id, label_text)
-            self._keys[key_id] = Key(key_id, label, is_function_key=is_function)
+            key = Key(key_id, label, is_function_key=is_function)
+            self._keys[key_id] = key
+            self._feedback_manager.initialize_key(key_id, key.color)
             
         # 알파벳 키 초기화
         for c in range(ord('a'), ord('z') + 1):
             char = chr(c)
             label = self._label_manager.create_label(char, char.upper())
-            self._keys[char] = Key(char, label)
+            key = Key(char, label)
+            self._keys[char] = key
+            self._feedback_manager.initialize_key(char, key.color)
             
         # 숫자 키 초기화
         for num in range(10):
             num_str = str(num)
             label = self._label_manager.create_label(num_str, num_str)
-            self._keys[num_str] = Key(num_str, label)
+            key = Key(num_str, label)
+            self._keys[num_str] = key
+            self._feedback_manager.initialize_key(num_str, key.color)
             
         # 특수문자 키 초기화
         special_keys = {
@@ -239,7 +247,9 @@ class NestKeyboard:
         }
         for key_id, (normal, shift) in special_keys.items():
             label = self._label_manager.create_label(key_id, normal, shift_label=shift)
-            self._keys[key_id] = Key(key_id, label)
+            key = Key(key_id, label)
+            self._keys[key_id] = key
+            self._feedback_manager.initialize_key(key_id, key.color)
             
     def _update_function_keys(self, key_id: str, is_pressed: bool) -> None:
         """기능 키 상태를 업데이트합니다.
@@ -304,6 +314,7 @@ class NestKeyboard:
         # 한/영 키 처리
         if key_id == 'hangul':
             self._ime_manager.toggle_ime()
+            self._feedback_manager.play_key_press_sound(key_id)
             return
             
         # Caps Lock 키 처리
@@ -312,9 +323,11 @@ class NestKeyboard:
             if self._ime_manager.is_korean():
                 self._ime_manager.force_state(IMEState.ENGLISH)
             self._label_manager.toggle_caps_lock()
+            self._feedback_manager.play_key_press_sound(key_id)
             return
             
         key.press()
+        self._feedback_manager.play_key_press_sound(key_id)
         
         # 기능 키 상태 업데이트
         if key.is_function_key:
@@ -335,6 +348,9 @@ class NestKeyboard:
         key = self._keys[key_id]
         key.release()
         
+        # 모든 키에 대해 뗌 소리 재생
+        self._feedback_manager.play_key_release_sound(key_id)
+        
         # 기능 키 처리
         if key.is_function_key:
             self._update_function_keys(key_id, False)
@@ -350,6 +366,26 @@ class NestKeyboard:
         # 모든 키 해제
         self._key_simulator.release_all_keys()
         self._active_function_keys.clear()
+        
+    @property
+    def visual_feedback_enabled(self) -> bool:
+        """시각적 피드백 활성화 여부를 반환합니다."""
+        return self._feedback_manager.visual_enabled
+        
+    @visual_feedback_enabled.setter
+    def visual_feedback_enabled(self, value: bool) -> None:
+        """시각적 피드백 활성화 여부를 설정합니다."""
+        self._feedback_manager.visual_enabled = value
+        
+    @property
+    def sound_feedback_enabled(self) -> bool:
+        """소리 피드백 활성화 여부를 반환합니다."""
+        return self._feedback_manager.sound_enabled
+        
+    @sound_feedback_enabled.setter
+    def sound_feedback_enabled(self, value: bool) -> None:
+        """소리 피드백 활성화 여부를 설정합니다."""
+        self._feedback_manager.sound_enabled = value
         
     def get_key_color(self, key_id: str) -> Optional[QColor]:
         """특정 키의 현재 색상을 가져옵니다.
