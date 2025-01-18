@@ -1,20 +1,15 @@
 """키보드 피드백을 관리하는 모듈입니다."""
 
 import logging
-import os
-import random
-from enum import Enum, auto
-from typing import Dict, Optional, Tuple, List
+from enum import Enum
+from typing import Dict, Optional
 from pathlib import Path
-import pygame.mixer
-from PySide6.QtCore import QPropertyAnimation, QEasingCurve, Property, QObject
+from PySide6.QtMultimedia import QSoundEffect
+from PySide6.QtCore import QPropertyAnimation, QEasingCurve, Property, QObject, QUrl
 from PySide6.QtGui import QColor
 
 # 로거 설정
 logger = logging.getLogger(__name__)
-
-# pygame mixer 초기화
-pygame.mixer.init(frequency=44100)
 
 class KeySwitchType(Enum):
     """키보드 스위치의 종류를 나타내는 열거형 클래스입니다."""
@@ -96,16 +91,15 @@ class FeedbackManager:
     
     def __init__(self):
         """FeedbackManager 클래스를 초기화합니다."""
+        super().__init__()
         self._visual_enabled = True
         self._sound_enabled = True
         self._visual_feedbacks: Dict[str, VisualFeedback] = {}
-        self._current_switch = KeySwitchType.MX_BROWN  # 기본값
+        self._sound_cache: Dict[str, QSoundEffect] = {}
+        self._current_switch = KeySwitchType.MX_BROWN
         
         # 사운드 파일 경로 설정
         self._sound_dir = Path(__file__).parent.parent.parent.parent / "assets" / "sounds" / "keyboard"
-        
-        # 사운드 캐시 초기화
-        self._sound_cache: Dict[str, pygame.mixer.Sound] = {}
         
     def _get_sound_file(self, key_id: str, is_press: bool) -> Optional[Path]:
         """키에 해당하는 사운드 파일 경로를 반환합니다.
@@ -186,14 +180,14 @@ class FeedbackManager:
         except Exception as e:
             logger.error(f"Failed to play key release sound: {e}")
             
-    def _load_sound(self, sound_file: Path) -> Optional[pygame.mixer.Sound]:
+    def _load_sound(self, sound_file: Path) -> Optional[QSoundEffect]:
         """사운드 파일을 로드하거나 캐시에서 가져옵니다.
         
         Args:
             sound_file (Path): 사운드 파일 경로
             
         Returns:
-            Optional[pygame.mixer.Sound]: 로드된 사운드 객체. 실패 시 None
+            Optional[QSoundEffect]: 로드된 사운드 객체. 실패 시 None
         """
         cache_key = str(sound_file)
         if cache_key in self._sound_cache:
@@ -201,9 +195,18 @@ class FeedbackManager:
             
         try:
             if sound_file.exists():
-                sound = pygame.mixer.Sound(str(sound_file))
-                self._sound_cache[cache_key] = sound
-                return sound
+                sound = QSoundEffect()
+                sound.setSource(QUrl.fromLocalFile(str(sound_file)))
+                sound.setLoopCount(1)  # 한 번만 재생
+                sound.setVolume(1.0)   # 최대 볼륨
+                
+                # 로딩 완료 대기
+                if sound.status() == QSoundEffect.Status.Ready:
+                    self._sound_cache[cache_key] = sound
+                    return sound
+                else:
+                    logger.warning(f"Sound file loading failed: {sound_file}")
+                    return None
             else:
                 logger.warning(f"Sound file not found: {sound_file}")
                 return None
