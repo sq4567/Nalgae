@@ -67,25 +67,6 @@ class VisualFeedback(QObject):
 class FeedbackManager:
     """키보드의 피드백을 관리하는 클래스입니다."""
     
-    # 키보드 행별 사운드 매핑
-    KEY_ROW_MAPPING = {
-        # Function keys (F1-F12)
-        'f1': 0, 'f2': 0, 'f3': 0, 'f4': 0, 'f5': 0, 'f6': 0,
-        'f7': 0, 'f8': 0, 'f9': 0, 'f10': 0, 'f11': 0, 'f12': 0,
-        # Number row
-        '`': 1, '1': 1, '2': 1, '3': 1, '4': 1, '5': 1,
-        '6': 1, '7': 1, '8': 1, '9': 1, '0': 1, '-': 1, '=': 1,
-        # QWERTY row
-        'q': 2, 'w': 2, 'e': 2, 'r': 2, 't': 2, 'y': 2,
-        'u': 2, 'i': 2, 'o': 2, 'p': 2, '[': 2, ']': 2, '\\': 2,
-        # Home row
-        'a': 3, 's': 3, 'd': 3, 'f': 3, 'g': 3, 'h': 3,
-        'j': 3, 'k': 3, 'l': 3, ';': 3, "'": 3,
-        # Bottom row
-        'z': 4, 'x': 4, 'c': 4, 'v': 4, 'b': 4, 'n': 4,
-        'm': 4, ',': 4, '.': 4, '/': 4
-    }
-    
     # 특수 키 사운드 매핑
     SPECIAL_KEYS = {'backspace', 'enter', 'space'}
     
@@ -120,13 +101,9 @@ class FeedbackManager:
             sound_file = switch_dir / sound_type / f"{key_lower.upper()}.mp3"
             return sound_file if sound_file.exists() else None
             
-        # 일반 키 처리
-        if key_lower in self.KEY_ROW_MAPPING:
-            row_num = self.KEY_ROW_MAPPING[key_lower]
-            sound_file = switch_dir / sound_type / f"GENERIC_R{row_num}.mp3"
-            return sound_file if sound_file.exists() else None
-            
-        return None
+        # 일반 키 처리 (모든 일반 키는 GENERIC.mp3 사용)
+        sound_file = switch_dir / sound_type / "GENERIC.mp3"
+        return sound_file if sound_file.exists() else None
         
     def set_switch_type(self, switch_type: KeySwitchType) -> None:
         """키보드 스위치 타입을 설정합니다.
