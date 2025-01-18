@@ -52,6 +52,7 @@ Thumbs.db
 # Project specific
 user_data.json
 *.bak
+src/ui/Nalgae/
 
 # Docs
 docs/*_save.md
