@@ -9,17 +9,17 @@ class KeySimulator:
     
     # 키 코드와 Windows Virtual Key Code 매핑
     VK_MAP = {
-        # 알파벳
-        **{chr(c): ord(c.upper()) for c in range(ord('a'), ord('z') + 1)},
-        # 숫자
-        **{str(n): ord(str(n)) for n in range(10)},
-        # 기능 키
+        **{chr(c): ord(c.upper()) for c in range(ord('a'), ord('z') + 1)},  # 알파벳
+        **{str(n): ord(str(n)) for n in range(10)},  # 숫자
+        
+        # 수정자 키
         'shift': win32con.VK_SHIFT,
         'ctrl': win32con.VK_CONTROL,
         'alt': win32con.VK_MENU,
         'win': win32con.VK_LWIN,
         'hangul': win32con.VK_HANGUL,
         'caps_lock': win32con.VK_CAPITAL,
+        
         # 특수문자
         '`': win32con.VK_OEM_3,
         '-': win32con.VK_OEM_MINUS,
@@ -91,4 +91,4 @@ class KeySimulator:
     @property
     def active_keys(self) -> Set[str]:
         """현재 눌린 키들의 집합을 반환합니다."""
-        return self._active_keys.copy() 
+        return self._active_keys.copy()
